@@ -13,7 +13,6 @@ lock_clientes = threading.Lock()
 def logar_alerta(partes_msg):
     comando, origem, destino, timestamp, corpo = partes_msg
     log_entry = f"[{timestamp}] {comando} de {origem} para {destino}: {corpo}\n"
-    
     try:
         with open(LOG_FILE, "a", encoding='utf-8') as f:
             f.write(log_entry)
@@ -23,7 +22,6 @@ def logar_alerta(partes_msg):
 def enviar_para_todos(mensagem_bytes, origem_login):
     with lock_clientes:
         lista_sockets = clientes_conectados.items()
-        
     for login, cliente_info in lista_sockets:
         if login != origem_login:
             try:
@@ -36,7 +34,6 @@ def enviar_para_um(mensagem_bytes, destino_login):
     with lock_clientes:
         if destino_login in clientes_conectados:
             socket_destino = clientes_conectados[destino_login]["socket"]
-            
     if socket_destino:
         try:
             socket_destino.send(mensagem_bytes)
@@ -50,42 +47,33 @@ def enviar_para_um(mensagem_bytes, destino_login):
 def enviar_mensagem_servidor(destino_login, corpo_msg):
     timestamp = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
     mensagem = f"ACK|servidor|{destino_login}|{timestamp}|{corpo_msg}\n"
-    
     enviar_para_um(mensagem.encode('utf-8'), destino_login)
 
-# --- FUNÇÃO 'tratar_cliente' CORRIGIDA ---
 def tratar_cliente(client_socket, address):
     login = None
     client_file = None 
     try:
-        # Envolve o socket em um objeto "file-like" para ler linhas
         client_file = client_socket.makefile('r', encoding='utf-8')
-        
-        # 1. Ler o Login (agora espera uma linha terminada em \n)
         login_linha = client_file.readline()
         if not login_linha:
             raise ConnectionError("Desconexão antes do login (linha vazia)")
-        
         login = login_linha.strip()
 
         with lock_clientes:
             if not login or login in clientes_conectados:
                 client_socket.send(b"ERRO|servidor|login|...|Login invalido ou ja em uso.\n")
                 raise ConnectionError("Login invalido ou duplicado")
-            
             clientes_conectados[login] = {"socket": client_socket, "address": address}
             print(f"[LOGIN] Cliente '{login}' conectado de {address}.")
         
         enviar_mensagem_servidor(login, f"Bem-vindo {login}! Conectado ao NetOpsChat.")
 
-        # 2. Loop Principal (agora lendo linha por linha)
         while True:
             mensagem_str = client_file.readline()
             if not mensagem_str:
-                break # Cliente desconectou (EOF)
+                break
 
             mensagem_str = mensagem_str.strip()
-            
             if not mensagem_str:
                 continue
 
@@ -101,7 +89,6 @@ def tratar_cliente(client_socket, address):
                     enviar_mensagem_servidor(login, f"ERRO: Origem '{origem}' nao corresponde ao seu login '{login}'.")
                     continue
                 
-                # Adiciona o \n de volta para retransmitir
                 mensagem_bytes_com_nl = f"{mensagem_str}\n".encode('utf-8')
 
                 if comando == "MSG":
@@ -113,7 +100,6 @@ def tratar_cliente(client_socket, address):
                 
                 elif comando == "ALERT":
                     logar_alerta(partes)
-                    
                     if destino == "ALL":
                         enviar_para_todos(mensagem_bytes_com_nl, login)
                     else:
@@ -156,8 +142,6 @@ def tratar_cliente(client_socket, address):
         else:
             client_socket.close()
             print(f"[DESCONECTADO] Conexao anonima de {address} fechada.")
-# --- FIM DA CORREÇÃO ---
-
 
 def iniciar_servidor():
     servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -171,10 +155,8 @@ def iniciar_servidor():
         while True:
             try:
                 client_socket, address = servidor.accept()
-                
                 thread = threading.Thread(target=tratar_cliente, args=(client_socket, address), daemon=True)
                 thread.start()
-            
             except Exception as e:
                 print(f"[ERRO ACCEPT] Falha ao aceitar conexao: {e}")
     
