@@ -135,10 +135,9 @@ def conectar():
         cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         cliente_socket.connect((HOST_SERVIDOR, PORTA_SERVIDOR))
         
-        # --- CORREÇÃO APLICADA AQUI ---
-        # Adiciona o \n para que o servidor leia como uma linha
+       
         cliente_socket.send(f"{login}\n".encode('utf-8'))
-        # --- FIM DA CORREÇÃO ---
+   
         
         campo_mensagem.configure(state="normal")
         botao_enviar.configure(state="normal")
